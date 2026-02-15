@@ -185,40 +185,47 @@ console.log(players);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
 
-  const startDrawing = (e) => {
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
-    setIsDrawing(true);
-    setDrawingQueue([{ x, y }]);
-    
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
 
-  const draw = (e) => {
-    if (!isDrawing) return;
-    
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    
-    setDrawingQueue(prev => [...prev, { x, y }]);
-    
-    const ctx = canvas.getContext('2d');
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = brushSize;
-    ctx.strokeStyle = tool === 'eraser' ? '#FFFFFF' : color;
-    
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
-
+const startDrawing = (e) => {
+  e.preventDefault(); // Prevent scrolling on touch
+  const { x, y } = getCoordinates(e);
+  
+  setIsDrawing(true);
+  setDrawingQueue([{ x, y }]);
+  
+  const ctx = canvasRef.current.getContext('2d');
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+};
+const getCoordinates = (e) => {
+  const canvas = canvasRef.current;
+  const rect = canvas.getBoundingClientRect();
+  
+  // Check if it's a touch event or mouse event
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  const x = (clientX - rect.left) * (canvas.width / rect.width);
+  const y = (clientY - rect.top) * (canvas.height / rect.height);
+  
+  return { x, y };
+};
+const draw = (e) => {
+  if (!isDrawing) return;
+  e.preventDefault(); // Prevent scrolling on touch
+  
+  const { x, y } = getCoordinates(e);
+  setDrawingQueue(prev => [...prev, { x, y }]);
+  
+  const ctx = canvasRef.current.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = brushSize;
+  ctx.strokeStyle = tool === 'eraser' ? '#FFFFFF' : color;
+  
+  ctx.lineTo(x, y);
+  ctx.stroke();
+};
   const stopDrawing = async () => {
     if (!isDrawing) return;
     setIsDrawing(false);
@@ -679,21 +686,26 @@ console.log(players);
               borderRadius: '0.5rem',
               boxShadow: 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)'
             }}>
-              <canvas
-                ref={canvasRef}
-                width={1200}
-                height={700}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                style={{
-                  width: '100%',
-                  cursor: 'crosshair',
-                  borderRadius: '0.5rem',
-                  display: 'block'
-                }}
-              />
+        <canvas
+  ref={canvasRef}
+  width={1200}
+  height={700}
+  onMouseDown={startDrawing}
+  onMouseMove={draw}
+  onMouseUp={stopDrawing}
+  onMouseLeave={stopDrawing}
+  onTouchStart={startDrawing}
+  onTouchMove={draw}
+  onTouchEnd={stopDrawing}
+  onTouchCancel={stopDrawing}
+  style={{
+    width: '100%',
+    cursor: 'crosshair',
+    borderRadius: '0.5rem',
+    display: 'block',
+    touchAction: 'none' // Add this to prevent default touch behaviors
+  }}
+/>
             </div>
           </div>
         </div>
