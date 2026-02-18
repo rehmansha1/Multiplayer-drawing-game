@@ -88,7 +88,7 @@ export default function App() {
 
   useEffect(() => {
     // Create a single socket connection on mount
-    socketRef.current = io('http://localhost:4000/', {
+    socketRef.current = io('https://multiplayer-drawing-game-server.onrender.com/', {
       // withCredentials: true, // enable if your server needs cookies
       transports: ['websocket'], // optional: reduce polling in dev
       // autoConnect: true, // default true
