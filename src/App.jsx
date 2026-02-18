@@ -20,7 +20,11 @@ export default function App() {
   const [socketId,setSocketId] = useState("");
   const colors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF', '#FFA500'];
   const [players, setPlayers] = useState([]);
+  const [numberOfPlayers, setNumberOfPlayers] = useState(0);
   // Real-time sync using storage as WebSocket alternative
+      const playersRef = useRef([]);
+
+    useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => {
     if (!isInRoom) return;
 
@@ -35,11 +39,9 @@ export default function App() {
   useEffect(() => {
     if (!isInRoom) return;
 
-    const interval = setInterval(async () => {
-      await updatePresence();
-    }, 3000);
 
-    return () => clearInterval(interval);
+
+
   }, [isInRoom, roomId, username]);
 
   const syncRoom = async (data) => {
@@ -80,30 +82,13 @@ export default function App() {
     }
   };
 
-  const updatePresence = async () => {
-    try {
-      const result = await window.storage.get(`room-${roomId}`, true);
-      let data = result ? JSON.parse(result.value) : { strokes: [], users: [] };
-      
-      const now = Date.now();
-      data.users = (data.users || []).filter(u => now - u.lastActive < 10000 && u.id !== userId);
-      data.users.push({
-        id: userId,
-        name: username,
-        lastActive: now
-      });
-      
-      await window.storage.set(`room-${roomId}`, JSON.stringify(data), true);
-    } catch (error) {
-      console.error('Presence error:', error);
-    }
-  };
+
   const socketRef = useRef(null);
   const [received, setReceived] = useState([]);
 
   useEffect(() => {
     // Create a single socket connection on mount
-    socketRef.current = io('https://multiplayer-drawing-game-server.onrender.com', {
+    socketRef.current = io('http://localhost:4000/', {
       // withCredentials: true, // enable if your server needs cookies
       transports: ['websocket'], // optional: reduce polling in dev
       // autoConnect: true, // default true
@@ -121,12 +106,18 @@ export default function App() {
       console.log('receive:', payload);
       setReceived((prev) => [...prev, payload]);
       syncRoom(payload)
+      
     });
-    socket.on('joinner', (roomId) => {
-      console.log(`Joined room: ${roomId}`);
-      setPlayers((prev) => [...prev, roomId]);
 
-    });
+
+  socket.on('joinner', (newId) => {
+  console.log(`New user joined: ${newId}`);
+ 
+  setPlayers((prev) => [...prev, newId]);
+});
+socket.on('returnCheck', (length) => {
+  setNumberOfPlayers(length);
+});
     socket.on('clear', () => {
       console.log('Canvas cleared by another user');
       const canvas = canvasRef.current;
@@ -147,32 +138,40 @@ export default function App() {
     };
   }, []);
   const broadcastStroke = async (stroke) => {
-console.log(players);
-      socketRef.current.emit('event', stroke,players);
+      socketRef.current.emit('event', stroke,inputRoomId);
     
 
   };
 
   const createRoom = () => {
     
-    setRoomId(socketId);
+    socketRef.current.emit('parent',inputUsername);
+    setRoomId(inputUsername);
     setUsername(inputUsername || 'Anonymous');
     setIsInRoom(true);
     initializeCanvas();
+
   };
+
+
 
   const joinRoom = async () => {
           setPlayers((prev) => [...prev, inputRoomId])
 
     socketRef.current.emit('joinRoom', inputRoomId);
-    if (!inputRoomId.trim()) return;
-    setRoomId(inputRoomId.toUpperCase());
+                    socketRef.current.emit("check", inputRoomId);
+
+    setRoomId(inputRoomId); 
     setUsername(inputUsername || 'Anonymous');
     setIsInRoom(true);
     initializeCanvas();
   };
 
   const leaveRoom = () => {
+    socketRef.current.emit('leaveRoom', inputRoomId);
+
+                        socketRef.current.emit("check", inputRoomId);
+
     setIsInRoom(false);
     setRoomId('');
     setUsers([]);
@@ -186,16 +185,24 @@ console.log(players);
   };
 
 
-const startDrawing = (e) => {
-  e.preventDefault(); // Prevent scrolling on touch
+const startDrawing = async (e) => {
+  e.preventDefault();
   const { x, y } = getCoordinates(e);
-  
   setIsDrawing(true);
-  setDrawingQueue([{ x, y }]);
-  
+
   const ctx = canvasRef.current.getContext('2d');
   ctx.beginPath();
   ctx.moveTo(x, y);
+
+ const stroke = {
+        points: [{ x, y }],
+        color: tool === 'eraser' ? '#FFFFFF' : color,
+        size: brushSize,
+        userId: userId,
+        timestamp: Date.now()
+      };
+      
+      await broadcastStroke(stroke);
 };
 const getCoordinates = (e) => {
   const canvas = canvasRef.current;
@@ -210,7 +217,7 @@ const getCoordinates = (e) => {
   
   return { x, y };
 };
-const draw = (e) => {
+const draw = async(e) => {
   if (!isDrawing) return;
   e.preventDefault(); // Prevent scrolling on touch
   
@@ -225,12 +232,21 @@ const draw = (e) => {
   
   ctx.lineTo(x, y);
   ctx.stroke();
+ const stroke = {
+        points: drawingQueue,
+        color: tool === 'eraser' ? '#FFFFFF' : color,
+        size: brushSize,
+        userId: userId,
+        timestamp: Date.now()
+      };
+      
+      await broadcastStroke(stroke);
+
 };
   const stopDrawing = async () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    
-    if (drawingQueue.length > 0) {
+          if (drawingQueue.length > 0) {
       const stroke = {
         points: drawingQueue,
         color: tool === 'eraser' ? '#FFFFFF' : color,
@@ -241,8 +257,9 @@ const draw = (e) => {
       
       await broadcastStroke(stroke);
       console.log(drawingQueue);
-      setDrawingQueue([]);
-    }
+      setDrawingQueue([]);}
+
+    
   };
   
   const clearCanvas = async () => {
@@ -315,7 +332,7 @@ const draw = (e) => {
               fontWeight: 'bold',
               color: '#1f2937',
               marginBottom: '0.5rem'
-            }}>Drawing Rooms</h1>
+            }}></h1>
             <p style={{ color: '#4b5563' }}>Create or join a private drawing room</p>
           </div>
 
@@ -327,12 +344,12 @@ const draw = (e) => {
                 fontWeight: '500',
                 color: '#374151',
                 marginBottom: '0.5rem'
-              }}>Your Name</label>
+              }}>Your Room Name</label>
               <input
                 type="text"
                 value={inputUsername}
                 onChange={(e) => setInputUsername(e.target.value)}
-                placeholder="Enter your name"
+                placeholder="Create Your Room"
                 style={{
                   minWidth: '97%',
                   padding: '10px',
@@ -347,28 +364,7 @@ const draw = (e) => {
               />
             </div>
 
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: 0,
-                right: 0,
-                height: '1px',
-                background: '#d1d5db'
-              }}></div>
-              <div style={{
-                position: 'relative',
-                textAlign: 'center'
-              }}>
-                <span style={{
-                  padding: '0 1rem',
-                  background: 'white',
-                  color: '#6b7280',
-                  fontSize: '0.875rem',
-                  fontWeight: '500'
-                }}>Choose an option</span>
-              </div>
-            </div>
+
 
             <button
               onClick={createRoom}
@@ -394,7 +390,28 @@ const draw = (e) => {
               <Home size={20} />
               Create New Room
             </button>
-
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: 0,
+                right: 0,
+                height: '1px',
+                background: '#d1d5db'
+              }}></div>
+              <div style={{
+                position: 'relative',
+                textAlign: 'center'
+              }}>
+                <span style={{
+                  padding: '0 1rem',
+                  background: 'white',
+                  color: '#6b7280',
+                  fontSize: '0.875rem',
+                  fontWeight: '500'
+                }}>Choose an option</span>
+              </div>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"
@@ -408,7 +425,6 @@ const draw = (e) => {
                   borderRadius: '0.75rem',
                   fontSize: '1rem',
                   outline: 'none',
-                  textTransform: 'uppercase'
                 }}
                 onFocus={(e) => e.target.style.borderColor = '#a855f7'}
                 onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
@@ -478,7 +494,7 @@ const draw = (e) => {
               gap: '1rem'
             }}>
               <div>
-                <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', margin: 0 }}>Drawing Room</h1>
+                <h1 style={{ fontSize: '1.875rem', fontWeight: 'bold', margin: 0 }}></h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <code style={{
                     background: 'rgba(255, 255, 255, 0.2)',
@@ -506,7 +522,9 @@ const draw = (e) => {
                   </button>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }} onClick={()=>{
+                socketRef.current.emit("check", inputRoomId);
+              }}>
                 <div style={{
                   background: 'rgba(255, 255, 255, 0.2)',
                   padding: '0.5rem 1rem',
@@ -516,7 +534,8 @@ const draw = (e) => {
                   gap: '0.5rem'
                 }}>
                   <Users size={20} />
-                  <span style={{ fontWeight: '600' }}>{users.length} online</span>
+
+                  <span style={{ fontWeight: '600' }}>{numberOfPlayers} online</span>
                 </div>
                 <button
                   onClick={leaveRoom}

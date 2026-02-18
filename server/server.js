@@ -1,37 +1,52 @@
-import {Server} from "socket.io"
+import { Server } from "socket.io";
 
 const io = new Server(4000, {
   cors: {
-    origin: ['https://multiplayer-drawing-sp3y.onrender.com/'],
-    methods: ['GET', 'POST'],
+    origin: ["http://localhost:5173/"],
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
-  
+io.on("connection", (socket) => {
+  socket.on("check", (data) => {
+    io.in(data)
+      .fetchSockets()
+      .then((sockets) => {
+        io.to(data).emit("returnCheck", sockets.length);
+      });
+  });
+socket.on("leaveRoom", (data) => { 
+    socket.leave(data);
+    socket.on("check", (data) => {
+    io.in(data)
+      .fetchSockets()
+      .then((sockets) => {
+        io.to(data).emit("returnCheck", sockets.length);
+      });
+  });
+}
+);
   // Listen for custom "event" from THIS specific socket
-  socket.on('event', (string,room) =>{
-
-    for (let i = 0; i < room.length; i++) {
-        console.log(`Emitting to room: ${room[i]}`);
-        socket.to(room).emit("receive", string);
-    }
-
+  socket.on("event", (string, room) => {
+    console.log(
+      `Received event from socket ${socket.id} for room ${room}: ${string}`,
+    );
+    socket.to(room).emit("receive", string);
   });
-  socket.on('clear', (room) =>{
-    for (let i = 0; i < room.length; i++) {
-        console.log(`Emitting clear to room: ${room[i]}`);
-        socket.to(room).emit("clear");
-    }})
-  socket.on('joinRoom', (roomId) => {
-        socket.to(roomId).emit("joinner", socket.id);
 
-  })
-  socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+  socket.on("clear", (room) => {
+    socket.to(room).emit("clear");
   });
+
+  socket.on("joinRoom", (roomId) => {
+    socket.join(roomId); // fix: actually join the room
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+
 });
 
-console.log('Socket.IO server running on port 4000');
+console.log("Socket.IO server running on port 4000");
