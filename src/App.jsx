@@ -337,81 +337,10 @@ const draw = async(e) => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                color: '#374151',
-                marginBottom: '0.5rem'
-              }}>Your Room Name</label>
-              <input
-                type="text"
-                value={inputUsername}
-                onChange={(e) => setInputUsername(e.target.value)}
-                placeholder="Create Your Room"
-                style={{
-                  minWidth: '97%',
-                  padding: '10px',
-                  paddingRight:'0px',
-                  border: '2px solid #e5e7eb',
-                  borderRadius: '0.75rem',
-                  fontSize: '1rem',
-                  outline: 'none'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#a855f7'}
-                onBlur={(e) => e.target.style.borderColor = '#e5e7eb'}
-              />
-            </div>
+  
 
 
 
-            <button
-              onClick={createRoom}
-              style={{
-                width: '100%',
-                padding: '1rem',
-                background: 'linear-gradient(to right, #9333ea, #2563eb)',
-                color: 'white',
-                borderRadius: '0.75rem',
-                fontWeight: '600',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                fontSize: '1rem',
-                transition: 'transform 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-              onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-            >
-              <Home size={20} />
-              Create New Room
-            </button>
-            <div style={{ position: 'relative' }}>
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: 0,
-                right: 0,
-                height: '1px',
-                background: '#d1d5db'
-              }}></div>
-              <div style={{
-                position: 'relative',
-                textAlign: 'center'
-              }}>
-                <span style={{
-                  padding: '0 1rem',
-                  background: 'white',
-                  color: '#6b7280',
-                  fontSize: '0.875rem',
-                  fontWeight: '500'
-                }}>Choose an option</span>
-              </div>
-            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <input
                 type="text"
